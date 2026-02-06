@@ -293,8 +293,11 @@ function animate() {
     // Update systems
     player.update(dt, inventory);
     world.update(player.position);
-    dayNight.update(dt);
-    mobs.update(dt, player.position, world);
+    dayNight.update(dt, player.position);
+    const mobResult = mobs.update(dt, player.position, dayNight.isNight());
+    if (mobResult && mobResult.type === 'damage' && !player.creative) {
+        player.health = Math.max(0, player.health - mobResult.amount);
+    }
 
     // Check for damage flash
     if (player.health < lastHealth) {
