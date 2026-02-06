@@ -277,7 +277,7 @@ export class Chunk {
                             faceUVs[4], faceUVs[5],
                             faceUVs[6], faceUVs[7]
                         );
-                        idx.push(vi, vi + 1, vi + 2, vi, vi + 2, vi + 3);
+                        idx.push(vi, vi + 2, vi + 1, vi, vi + 3, vi + 2);
                     }
                 }
             }
