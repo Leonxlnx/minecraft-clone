@@ -530,48 +530,54 @@ let crackMesh = null;
 let crackTextures = [];
 
 function initMiningCrack() {
-    // Minecraft-style destroy stages: scattered cracks across the face
-    // Each stage adds more lines, making the block look increasingly damaged
+    // Mining crack animation — starts from center impact, grows outward
+    // Asymmetric cracks that branch naturally, 5 cumulative stages
     const stages = 5;
     const size = 64;
 
-    // Scattered cracks — NOT from center, just random segments across the face
-    // Each line is [x1, y1, x2, y2] — all horizontal or vertical
+    // Each stage: array of line segments [x1, y1, x2, y2]
+    // Starts small from center, progressively covers more of the face
     const stageCracks = [
-        // Stage 1: a few small scattered cracks
+        // Stage 1: small initial crack from center
         [
-            [10, 18, 28, 18],  // horizontal top-left area
-            [40, 44, 40, 58],  // vertical bottom-right area
+            [28, 30, 36, 30],   // short horizontal from center
+            [32, 26, 32, 36],   // short vertical from center
         ],
-        // Stage 2: more cracks appearing in different areas
+        // Stage 2: cracks extend outward asymmetrically
         [
-            [36, 10, 56, 10],  // horizontal top-right
-            [8, 38, 8, 54],    // vertical left side
-            [44, 30, 58, 30],  // horizontal mid-right
+            [28, 30, 16, 22],   // upper-left diagonal
+            [36, 30, 48, 38],   // lower-right diagonal
+            [32, 26, 26, 14],   // up-left
+            [32, 36, 40, 48],   // down-right
         ],
-        // Stage 3: filling in, getting denser
+        // Stage 3: more branches, reaching further
         [
-            [14, 48, 34, 48],  // horizontal bottom-left
-            [52, 16, 52, 36],  // vertical right side
-            [4, 8, 22, 8],     // horizontal top-left corner
-            [28, 24, 28, 42],  // vertical center-left
+            [16, 22, 8, 22],    // extend left
+            [16, 22, 16, 10],   // branch up from existing
+            [48, 38, 56, 38],   // extend right
+            [48, 38, 48, 50],   // branch down from existing
+            [26, 14, 38, 8],    // branch right at top
+            [40, 48, 28, 56],   // branch left at bottom
         ],
-        // Stage 4: heavy damage
+        // Stage 4: dense — filling out the face
         [
-            [16, 32, 40, 32],  // horizontal mid
-            [8, 58, 30, 58],   // horizontal bottom
-            [48, 48, 60, 48],  // horizontal bottom-right
-            [20, 4, 20, 18],   // vertical top
-            [56, 40, 56, 58],  // vertical right-bottom
+            [8, 22, 4, 34],     // left side down
+            [16, 10, 6, 4],     // top-left corner
+            [56, 38, 60, 28],   // right side up
+            [48, 50, 58, 58],   // bottom-right corner
+            [38, 8, 52, 6],     // top-right
+            [28, 56, 10, 58],   // bottom-left
         ],
-        // Stage 5: nearly broken — dense cracks everywhere
+        // Stage 5: nearly shattered — cracks everywhere
         [
-            [4, 24, 18, 24],   // horizontal
-            [32, 56, 54, 56],  // horizontal bottom
-            [36, 4, 36, 20],   // vertical top-center
-            [12, 12, 12, 28],  // vertical left-upper
-            [46, 22, 60, 22],  // horizontal right
-            [24, 40, 24, 56],  // vertical center
+            [4, 34, 4, 48],     // left edge
+            [6, 4, 24, 4],      // top edge
+            [60, 28, 60, 14],   // right edge top
+            [58, 58, 44, 60],   // bottom edge
+            [52, 6, 56, 16],    // top-right down
+            [10, 58, 4, 50],    // bottom-left up
+            [30, 20, 44, 16],   // inner crosshatch
+            [22, 42, 36, 46],   // inner crosshatch
         ],
     ];
 
