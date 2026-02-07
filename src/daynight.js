@@ -10,17 +10,17 @@ export class DayNightCycle {
         this.speed = 1 / this.dayLength;
 
         // Ambient light
-        this.ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        this.ambientLight = new THREE.AmbientLight(0xffffff, 0.35);
         scene.add(this.ambientLight);
 
         // Directional light (sun)
-        this.sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        this.sunLight = new THREE.DirectionalLight(0xfff8e0, 1.3);
         this.sunLight.castShadow = false; // Perf optimization
         this.sunLight.position.set(50, 100, 50);
         scene.add(this.sunLight);
 
         // Hemisphere light for ambient sky color
-        this.hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x444444, 0.3);
+        this.hemiLight = new THREE.HemisphereLight(0x88ccff, 0x222211, 0.45);
         scene.add(this.hemiLight);
 
         // Fog — use scene fog if set, otherwise create one

@@ -114,14 +114,26 @@ body {
 #status-bars {
   display: flex;
   justify-content: space-between;
+  align-items: flex-end;
   width: 364px;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
+  padding: 0 2px;
 }
 
-#health-bar,
+#health-bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  height: 18px;
+}
+
 #hunger-bar {
   display: flex;
+  align-items: center;
   gap: 0;
+  height: 18px;
+  direction: rtl;
+  /* Fills from right-to-left like MC */
 }
 
 .heart,

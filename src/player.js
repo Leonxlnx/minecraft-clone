@@ -93,29 +93,22 @@ export class Player {
     }
 
     createRightArm() {
-        // Minecraft-style first-person arm — clean, wide, skin-colored
+        // Bare Minecraft hand — no sleeve, just skin-colored arm + fist
         const armGroup = new THREE.Group();
 
-        // Forearm (wider, flatter MC-style)
-        const armGeo = new THREE.BoxGeometry(0.24, 0.65, 0.24);
+        // Long forearm (2x longer than before)
+        const armGeo = new THREE.BoxGeometry(0.22, 1.2, 0.22);
         const armMat = new THREE.MeshLambertMaterial({ color: 0xd4a574 }); // Skin tone
         const arm = new THREE.Mesh(armGeo, armMat);
-        arm.position.set(0, -0.15, 0);
+        arm.position.set(0, -0.3, 0);
         armGroup.add(arm);
 
-        // Fist at the bottom (slightly wider than arm)
-        const fistGeo = new THREE.BoxGeometry(0.28, 0.2, 0.28);
-        const fistMat = new THREE.MeshLambertMaterial({ color: 0xc89860 }); // Slightly darker skin
+        // Fist at the bottom (slightly wider)
+        const fistGeo = new THREE.BoxGeometry(0.26, 0.22, 0.26);
+        const fistMat = new THREE.MeshLambertMaterial({ color: 0xc89860 }); // Slightly darker
         const fist = new THREE.Mesh(fistGeo, fistMat);
-        fist.position.set(0, -0.55, 0);
+        fist.position.set(0, -0.95, 0);
         armGroup.add(fist);
-
-        // Shirt sleeve cuff (dark gray, not green!)
-        const sleeveGeo = new THREE.BoxGeometry(0.26, 0.08, 0.26);
-        const sleeveMat = new THREE.MeshLambertMaterial({ color: 0x555555 });
-        const sleeve = new THREE.Mesh(sleeveGeo, sleeveMat);
-        sleeve.position.set(0, 0.28, 0);
-        armGroup.add(sleeve);
 
         return armGroup;
     }
@@ -359,28 +352,28 @@ export class Player {
 
     updateArmSwing(dt) {
         if (this.isSwinging) {
-            this.armSwing += dt * 10;
+            this.armSwing += dt * 14;
             if (this.armSwing > Math.PI) {
                 this.armSwing = 0;
                 this.isSwinging = false;
             }
         }
 
-        // Mining swing animation (continuous while holding)
+        // Mining swing animation (continuous while holding) — fast!
         if (this.isMining) {
-            this.mineSwingAngle += dt * 6;
+            this.mineSwingAngle += dt * 14;
         } else {
-            this.mineSwingAngle *= 0.85; // Smoothly return
+            this.mineSwingAngle *= 0.8; // Quickly return
         }
 
-        // Update right arm — slim, lower, to the right
+        // Update right arm position
         if (this.rightArm.parent) {
-            const swing = Math.sin(this.armSwing) * 0.4;
-            const mineSwing = Math.sin(this.mineSwingAngle) * 0.35;
+            const swing = Math.sin(this.armSwing) * 0.5;
+            const mineSwing = Math.sin(this.mineSwingAngle) * 0.45;
             const totalSwing = swing + mineSwing;
-            this.rightArm.position.set(0.38, -0.5 - totalSwing * 0.08, -0.45 + totalSwing * 0.15);
+            this.rightArm.position.set(0.38, -0.5 - totalSwing * 0.1, -0.45 + totalSwing * 0.2);
             this.rightArm.rotation.x = -totalSwing;
-            this.rightArm.rotation.z = -0.1; // Slight tilt
+            this.rightArm.rotation.z = -0.1;
         }
     }
 

@@ -418,18 +418,15 @@ function initMiningCrack() {
             ctx.drawImage(cumulativeCanvas, 0, 0);
         }
 
-        const progress = (s + 1) / stages;
-
-        // Darken the face progressively
-        ctx.fillStyle = `rgba(0, 0, 0, ${progress * 0.25})`;
-        ctx.fillRect(0, 0, size, size);
+        // NO darkening — blocks keep original color, only show cracks!
 
         // Draw new lines for this stage
         const prevCount = s > 0 ? stageLineCounts[s - 1] : 0;
         const currCount = Math.min(stageLineCounts[s], allCracks.length);
 
-        ctx.strokeStyle = `rgba(0, 0, 0, ${0.6 + progress * 0.4})`;
-        ctx.lineWidth = 1 + progress;
+        // Thick, bold black crack lines
+        ctx.strokeStyle = `rgba(0, 0, 0, 0.85)`;
+        ctx.lineWidth = 2;
         ctx.lineCap = 'square';
 
         for (let i = prevCount; i < currCount; i++) {
