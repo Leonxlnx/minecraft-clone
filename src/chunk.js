@@ -171,8 +171,9 @@ export class Chunk {
 
                 const decNoise = noise.noise2D(wx * 0.5, wz * 0.5);
 
-                // Trees
-                if (biome !== 'desert' && biome !== 'snowy') {
+                // Trees — only on GRASS or DIRT, never on WOOD/LEAVES/etc.
+                const surfaceBlock = this.blocks[this.getIndex(lx, height, lz)];
+                if (biome !== 'desert' && biome !== 'snowy' && (surfaceBlock === BlockType.GRASS || surfaceBlock === BlockType.DIRT)) {
                     const treeChance = biome === 'forest' ? 0.88 : 0.94;
                     const spacing = noise.noise2D(wx * 0.3 + 500, wz * 0.3 + 500);
                     if (decNoise > treeChance && spacing > 0.1) {
@@ -190,19 +191,24 @@ export class Chunk {
                     }
                 }
 
-                // Tall grass + occasional flowers
-                if (biome === 'plains' || biome === 'forest' || biome === 'savanna') {
-                    const grassNoise = noise.noise2D(wx * 2.0, wz * 2.0);
+                // Tall grass + occasional flowers — use position-hash for randomness (no line patterns)
+                if ((biome === 'plains' || biome === 'forest' || biome === 'savanna') && surfaceBlock === BlockType.GRASS) {
                     if (this.blocks[this.getIndex(lx, height + 1, lz)] === BlockType.AIR) {
-                        // Tall grass is common
-                        if (grassNoise > 0.05 && grassNoise < 0.45 && decNoise <= (biome === 'forest' ? 0.75 : 0.9)) {
+                        // Use a hash-based random to avoid coherent noise line patterns
+                        const hash = Math.abs(Math.sin(wx * 12.9898 + wz * 78.233) * 43758.5453) % 1;
+                        const hash2 = Math.abs(Math.sin(wx * 63.7264 + wz * 10.873) * 28573.2938) % 1;
+
+                        // Tall grass: ~15% chance (plains), ~20% chance (forest), ~10% (savanna)
+                        const grassChance = biome === 'forest' ? 0.20 : (biome === 'savanna' ? 0.10 : 0.15);
+                        if (hash < grassChance) {
                             this.blocks[this.getIndex(lx, height + 1, lz)] = BlockType.TALL_GRASS;
                         }
-                        // Flowers are rare
-                        else if (grassNoise > 0.6 && grassNoise < 0.65) {
+                        // Red flower: ~1% chance
+                        else if (hash > 0.98 && hash2 > 0.5) {
                             this.blocks[this.getIndex(lx, height + 1, lz)] = BlockType.FLOWER_RED;
                         }
-                        else if (grassNoise > 0.55 && grassNoise < 0.58) {
+                        // Yellow flower: ~1% chance
+                        else if (hash > 0.96 && hash < 0.98 && hash2 > 0.6) {
                             this.blocks[this.getIndex(lx, height + 1, lz)] = BlockType.FLOWER_YELLOW;
                         }
                     }

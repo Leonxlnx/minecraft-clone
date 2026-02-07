@@ -110,16 +110,6 @@ export class Player {
         sleeve.position.set(0, 0.35, 0);
         armGroup.add(sleeve);
 
-        // Held block indicator (visible cube in the fist)
-        const heldGeo = new THREE.BoxGeometry(0.25, 0.25, 0.25);
-        const heldMat = new THREE.MeshLambertMaterial({ color: 0x5f9f35 });
-        const heldBlock = new THREE.Mesh(heldGeo, heldMat);
-        heldBlock.position.set(0, -0.7, -0.08);
-        heldBlock.visible = false;  // Will be toggled by updateHeldItem
-        armGroup.add(heldBlock);
-        this._heldBlockMesh = heldBlock;
-        this._heldBlockMat = heldMat;
-
         return armGroup;
     }
 
@@ -357,15 +347,7 @@ export class Player {
     };
 
     updateHeldItem(inventory) {
-        if (!this._heldBlockMesh || !inventory) return;
-        const held = inventory.getHeldItem();
-        if (held) {
-            const color = Player.HELD_ITEM_COLORS[held.type] || 0x888888;
-            this._heldBlockMat.color.setHex(color);
-            this._heldBlockMesh.visible = true;
-        } else {
-            this._heldBlockMesh.visible = false;
-        }
+        // Held block mesh removed — just show bare hand
     }
 
     updateArmSwing(dt) {

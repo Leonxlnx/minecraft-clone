@@ -101,8 +101,28 @@ function startGame(mode) {
     const isCreative = mode === 'creative';
     inventory = new Inventory(isCreative);
 
-    // World
-    world = new World(scene, blockMaterial, waterMaterial);
+    // World (with seed)
+    const seedInput = document.getElementById('seed-input');
+    let gameSeed = 12345;
+    if (seedInput && seedInput.value.trim()) {
+        const seedStr = seedInput.value.trim();
+        // If it's a number, use it directly; otherwise hash the string
+        if (!isNaN(seedStr)) {
+            gameSeed = parseInt(seedStr, 10);
+        } else {
+            // Simple string hash
+            gameSeed = 0;
+            for (let i = 0; i < seedStr.length; i++) {
+                gameSeed = ((gameSeed << 5) - gameSeed) + seedStr.charCodeAt(i);
+                gameSeed |= 0; // Convert to 32-bit integer
+            }
+        }
+    } else {
+        // Random seed
+        gameSeed = Math.floor(Math.random() * 2147483647);
+    }
+    console.log('World seed:', gameSeed);
+    world = new World(scene, blockMaterial, waterMaterial, gameSeed);
     world.renderDistance = gameRenderDist;
 
     // Player
