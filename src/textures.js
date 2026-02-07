@@ -196,50 +196,72 @@ export function createTextureAtlas() {
     ctx.fillStyle = '#866049';
     ctx.fillRect(0, 0, ATLAS_SIZE, ATLAS_SIZE);
 
-    // ----- GRASS TOP -----
+    // ---- HELPER: hash-based per-pixel color picker from a palette ----
+    function pickColor(palette, x, y, seed) {
+        const h = Math.abs(Math.sin(x * 127.1 + y * 311.7 + seed * 43758.5453) * 43758.5453);
+        const idx = Math.floor((h - Math.floor(h)) * palette.length);
+        return palette[Math.min(idx, palette.length - 1)].slice();
+    }
+
+    // ----- GRASS TOP ----- (rich varied greens like Minecraft)
     const gt = FACE_TEXTURES[BlockType.GRASS];
-    fillTile(ctx, gt.top, (x, y) => {
-        const c = variantColor(COLORS.grass_top.base, COLORS.grass_top.variants, x, y);
-        return jitter(c, 6, x, y);
-    });
+    const grassTopPalette = [
+        [89, 145, 51], [82, 138, 44], [96, 152, 56], [75, 130, 40],
+        [100, 160, 60], [70, 125, 38], [85, 140, 48], [92, 150, 54],
+        [78, 133, 42], [105, 155, 58], [68, 120, 36], [88, 142, 50],
+        [80, 136, 43], [95, 148, 55], [72, 128, 39], [90, 146, 52],
+    ];
+    fillTile(ctx, gt.top, (x, y) => pickColor(grassTopPalette, x, y, 10));
 
     // ----- GRASS BOTTOM (DIRT) -----
-    fillTile(ctx, gt.bottom, (x, y) => {
-        const c = variantColor(COLORS.dirt.base, COLORS.dirt.variants, x, y, 1);
-        return jitter(c, 5, x, y);
-    });
+    const dirtPalette = [
+        [134, 96, 67], [121, 85, 58], [140, 100, 72], [115, 80, 54],
+        [128, 90, 63], [145, 103, 75], [110, 76, 50], [136, 98, 69],
+        [118, 83, 56], [142, 102, 73], [125, 88, 61], [130, 92, 65],
+        [112, 78, 52], [138, 99, 70], [123, 86, 59], [132, 94, 66],
+    ];
+    fillTile(ctx, gt.bottom, (x, y) => pickColor(dirtPalette, x, y, 20));
 
-    // ----- GRASS SIDE -----
+    // ----- GRASS SIDE ----- (dirt with grass strip on top)
     fillTile(ctx, gt.side, (x, y) => {
+        if (y === 0) return pickColor(grassTopPalette, x, y, 30);
         if (y <= 2) {
-            // Grass strip at top
-            const n = txNoise(x, y, 88);
-            if (y === 0 || (y <= 2 && n > 0.3)) {
-                const c = COLORS.grass_top.base;
-                return jitter(c, 6, x, y);
-            }
+            const n = txNoise(x, y, 31);
+            if (n > 0.35) return pickColor(grassTopPalette, x, y, 30);
+            // Transition mix
+            const g = pickColor(grassTopPalette, x, y, 30);
+            const d = pickColor(dirtPalette, x, y, 32);
+            return [Math.floor((g[0] + d[0]) / 2), Math.floor((g[1] + d[1]) / 2), Math.floor((g[2] + d[2]) / 2)];
         }
-        const c = variantColor(COLORS.dirt.base, COLORS.dirt.variants, x, y, 2);
-        return jitter(c, 5, x, y);
+        return pickColor(dirtPalette, x, y, 32);
     });
 
     // ----- DIRT -----
-    fillTile(ctx, FACE_TEXTURES[BlockType.DIRT].all, (x, y) => {
-        const c = variantColor(COLORS.dirt.base, COLORS.dirt.variants, x, y, 3);
-        return jitter(c, 5, x, y);
-    });
+    fillTile(ctx, FACE_TEXTURES[BlockType.DIRT].all, (x, y) => pickColor(dirtPalette, x, y, 40));
 
-    // ----- STONE -----
+    // ----- STONE ----- (varied grays with darker patches)
+    const stonePalette = [
+        [125, 125, 125], [118, 118, 118], [132, 132, 132], [108, 108, 108],
+        [140, 140, 140], [115, 115, 115], [128, 128, 128], [105, 105, 105],
+        [135, 135, 135], [112, 112, 112], [122, 122, 122], [100, 100, 100],
+        [130, 130, 130], [138, 138, 138], [110, 110, 110], [120, 120, 120],
+    ];
     fillTile(ctx, FACE_TEXTURES[BlockType.STONE].all, (x, y) => {
-        const c = variantColor(COLORS.stone.base, COLORS.stone.variants, x, y, 4);
-        return jitter(c, 10, x, y);
+        const c = pickColor(stonePalette, x, y, 50);
+        // Add occasional darker patches
+        const patch = txNoise(x * 0.5, y * 0.5, 51);
+        if (patch < 0.2) { c[0] -= 15; c[1] -= 15; c[2] -= 15; }
+        return c;
     });
 
-    // ----- SAND -----
-    fillTile(ctx, FACE_TEXTURES[BlockType.SAND].all, (x, y) => {
-        const c = variantColor(COLORS.sand.base, COLORS.sand.variants, x, y, 5);
-        return jitter(c, 8, x, y);
-    });
+    // ----- SAND ----- (warm beige with subtle speckles)
+    const sandPalette = [
+        [219, 207, 163], [214, 201, 156], [224, 212, 170], [210, 197, 150],
+        [228, 216, 175], [206, 193, 146], [222, 209, 166], [216, 203, 158],
+        [226, 214, 172], [212, 199, 152], [220, 208, 164], [208, 195, 148],
+        [230, 218, 178], [218, 205, 160], [213, 200, 155], [225, 213, 171],
+    ];
+    fillTile(ctx, FACE_TEXTURES[BlockType.SAND].all, (x, y) => pickColor(sandPalette, x, y, 60));
 
     // ----- WATER -----
     fillTile(ctx, FACE_TEXTURES[BlockType.WATER].all, (x, y) => {
@@ -248,44 +270,82 @@ export function createTextureAtlas() {
         return [b[0] + wave, b[1] + wave, b[2], 180];
     });
 
-    // ----- WOOD TOP -----
+    // ----- WOOD TOP ----- (concentric ring pattern like real Minecraft)
+    const woodTopLight = [190, 162, 102];
+    const woodTopDark = [160, 130, 78];
+    const woodTopRing = [130, 100, 60];
     fillTile(ctx, FACE_TEXTURES[BlockType.WOOD].top, (x, y) => {
         const cx = 7.5, cy = 7.5;
         const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
-        const ring = Math.sin(dist * 1.8) > 0;
-        const c = ring ? COLORS.wood_top.rings : COLORS.wood_top.base;
-        return jitter(c, 5, x, y);
+        const ringVal = Math.sin(dist * 2.2);
+        const n = txNoise(x, y, 70);
+        if (ringVal > 0.5) return jitter(woodTopRing, 6, x, y);
+        if (ringVal > 0.0) return jitter(woodTopDark, 5, x, y);
+        return jitter(woodTopLight, 4, x, y);
     });
 
-    // ----- WOOD SIDE -----
+    // ----- WOOD SIDE ----- (vertical bark with subtle variation)
+    const woodBarkPalette = [
+        [104, 83, 50], [98, 78, 46], [110, 88, 54], [92, 73, 42],
+        [116, 93, 58], [88, 70, 40], [106, 85, 52], [100, 80, 48],
+        [112, 90, 56], [95, 75, 44], [108, 86, 53], [90, 72, 41],
+        [114, 91, 57], [102, 82, 49], [96, 76, 45], [118, 94, 59],
+    ];
     fillTile(ctx, FACE_TEXTURES[BlockType.WOOD].side, (x, y) => {
-        const stripe = x % 4 === 0 || x % 4 === 3;
-        const c = stripe ? COLORS.wood_side.bark : COLORS.wood_side.base;
-        return jitter(c, 4, x, y);
+        const c = pickColor(woodBarkPalette, x, y, 75);
+        // Vertical stripe pattern
+        const stripe = (x + Math.floor(txNoise(x, y, 76) * 2)) % 3 === 0;
+        if (stripe) { c[0] -= 12; c[1] -= 10; c[2] -= 8; }
+        return c;
     });
 
-    // ----- LEAVES -----
+    // ----- LEAVES ----- (varied leaf greens with holes)
+    const leavesPalette = [
+        [56, 118, 29], [48, 108, 24], [62, 125, 33], [42, 100, 20],
+        [68, 132, 38], [38, 95, 18], [54, 115, 27], [60, 122, 31],
+        [50, 110, 25], [65, 128, 35], [44, 102, 21], [58, 120, 30],
+        [40, 98, 19], [66, 130, 37], [52, 112, 26], [46, 105, 22],
+    ];
     fillTile(ctx, FACE_TEXTURES[BlockType.LEAVES].all, (x, y) => {
-        const c = variantColor(COLORS.leaves.base, COLORS.leaves.variants, x, y, 7);
         const n = txNoise(x, y, 77);
-        const alpha = n > 0.15 ? 255 : 0;
-        return [...jitter(c, 10, x, y), alpha];
+        if (n > 0.82) return [0, 0, 0, 0]; // holes in leaves
+        const c = pickColor(leavesPalette, x, y, 80);
+        return [...c, 255];
     });
 
-    // ----- PLANKS -----
+    // ----- PLANKS ----- (horizontal plank lines with wood grain)
+    const plankPalette = [
+        [188, 152, 98], [180, 144, 90], [195, 158, 104], [174, 138, 84],
+        [192, 155, 101], [170, 134, 80], [186, 150, 96], [182, 146, 92],
+        [196, 160, 106], [176, 140, 86], [190, 153, 99], [178, 142, 88],
+    ];
     fillTile(ctx, FACE_TEXTURES[BlockType.PLANKS].all, (x, y) => {
         const plank = Math.floor(y / 4);
         const line = y % 4 === 0;
-        const c = line ? [150, 113, 60] : variantColor(COLORS.planks.base, COLORS.planks.variants, x + plank * 5, y, 8);
-        return jitter(c, 4, x, y);
+        if (line) return [155, 118, 65]; // dark seam line
+        const c = pickColor(plankPalette, x + plank * 5, y, 85);
+        return c;
     });
 
-    // ----- COBBLESTONE -----
+    // ----- COBBLESTONE ----- (irregular gray stone patches)
+    const cobblePalette = [
+        [128, 128, 128], [115, 115, 115], [140, 140, 140], [100, 100, 100],
+        [145, 145, 145], [108, 108, 108], [135, 135, 135], [95, 95, 95],
+        [122, 122, 122], [150, 150, 150], [105, 105, 105], [130, 130, 130],
+    ];
     fillTile(ctx, FACE_TEXTURES[BlockType.COBBLESTONE].all, (x, y) => {
-        const n = txNoise(x * 0.7, y * 0.7, 9);
-        const ci = Math.floor(n * COLORS.cobblestone.variants.length);
-        const c = COLORS.cobblestone.variants[Math.min(ci, COLORS.cobblestone.variants.length - 1)] || COLORS.cobblestone.base;
-        return jitter(c, 12, x, y);
+        const c = pickColor(cobblePalette, x, y, 90);
+        // Add mortar lines between stones
+        const gx = x % 4, gy = y % 4;
+        const offset = Math.floor(y / 4) % 2 === 0 ? 0 : 2;
+        const mx = (x + offset) % 4;
+        if (gx === 0 || gy === 0 || mx === 0) {
+            const n = txNoise(x, y, 91);
+            if (n < 0.4) {
+                c[0] -= 20; c[1] -= 20; c[2] -= 20;
+            }
+        }
+        return c;
     });
 
     // ----- BEDROCK -----

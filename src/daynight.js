@@ -198,7 +198,10 @@ export class DayNightCycle {
         }
 
         this.scene.background = skyColor;
-        this.fog.color = skyColor;
+        // Don't override fog when underwater — the game loop controls fog color during submersion
+        if (!window._isUnderwater) {
+            this.fog.color = skyColor;
+        }
 
         // Light intensity
         this.sunLight.intensity = dayFactor * 0.9;

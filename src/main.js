@@ -133,6 +133,13 @@ async function startGame(mode) {
     renderer.shadowMap.enabled = false;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
 
+    // Underwater overlay
+    const underwaterOverlay = document.createElement('div');
+    underwaterOverlay.id = 'underwater-overlay';
+    underwaterOverlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(10,30,90,0.45);pointer-events:none;z-index:5;opacity:0;transition:opacity 0.3s;';
+    document.body.appendChild(underwaterOverlay);
+    window._underwaterOverlay = underwaterOverlay;
+
     // Create texture atlas
     const atlas = createTextureAtlas();
     setAtlasCanvas(atlas.image);
@@ -175,9 +182,9 @@ async function startGame(mode) {
     const waterMaterial = new THREE.MeshLambertMaterial({
         map: atlas,
         transparent: true,
-        opacity: 0.6,
-        side: THREE.DoubleSide,
-        color: 0x4477dd,
+        opacity: 0.85,
+        side: THREE.FrontSide,
+        color: 0x3366bb,
     });
 
     // Inventory
@@ -704,10 +711,30 @@ function animate() {
     // Update UI
     ui.update(player, inventory, world);
 
-    // Update fog & sky to match day/night
+    // Underwater detection — check if player's eyes are inside a water block
+    const eyeX = Math.floor(player.position.x);
+    const eyeY = Math.floor(player.position.y + 1.6); // eye level
+    const eyeZ = Math.floor(player.position.z);
+    const headBlock = world.getBlock(eyeX, eyeY, eyeZ);
+    const isUnderwater = (headBlock === BlockType.WATER);
+    window._isUnderwater = isUnderwater;
+
+    if (window._underwaterOverlay) {
+        window._underwaterOverlay.style.opacity = isUnderwater ? '1' : '0';
+    }
+
+    // Update fog & sky to match day/night or underwater
     const skyColor = scene.background;
     if (scene.fog) {
-        scene.fog.color.copy(skyColor);
+        if (isUnderwater) {
+            scene.fog.color.set(0x0a1e5a);
+            scene.fog.near = 0;
+            scene.fog.far = 8;
+        } else {
+            scene.fog.color.copy(skyColor);
+            scene.fog.near = 1;
+            scene.fog.far = world.renderDistance * 16;
+        }
     }
 
     // Render
