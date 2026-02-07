@@ -182,9 +182,9 @@ async function startGame(mode) {
     const waterMaterial = new THREE.MeshLambertMaterial({
         map: atlas,
         transparent: true,
-        opacity: 0.85,
+        opacity: 0.92,
         side: THREE.FrontSide,
-        color: 0x3366bb,
+        color: 0x1a4a7a,
     });
 
     // Inventory
@@ -584,21 +584,19 @@ function initMiningCrack() {
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0);
 
-            // Convert to varied dark tones like real Minecraft cracks
-            // Not all black — different shades of dark for natural look
+            // Convert to black/dark gray with slight transparency — like real MC
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imageData.data;
             for (let p = 0; p < data.length; p += 4) {
                 if (data[p + 3] > 0) {
-                    // Use original pixel brightness to determine crack shade
+                    // Use original brightness for varied dark tones (0-30)
                     const brightness = (data[p] + data[p + 1] + data[p + 2]) / 3;
-                    // Map to varied dark tones: pure black to dark gray (0-45)
-                    const shade = Math.floor((brightness / 255) * 45);
-                    data[p] = shade;       // R
+                    const shade = Math.floor((brightness / 255) * 30);
+                    data[p] = shade;       // R — black to very dark gray
                     data[p + 1] = shade;   // G
                     data[p + 2] = shade;   // B
-                    // Keep original alpha — full visibility cracks
-                    // data[p + 3] stays as-is
+                    // Slight transparency — mostly opaque black
+                    data[p + 3] = Math.floor(data[p + 3] * 0.75);
                 }
             }
             ctx.putImageData(imageData, 0, 0);

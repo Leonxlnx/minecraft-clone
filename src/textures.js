@@ -203,49 +203,53 @@ export function createTextureAtlas() {
         return palette[Math.min(idx, palette.length - 1)].slice();
     }
 
-    // ----- GRASS TOP ----- (rich varied greens with dark shadows like real MC)
+    // ----- GRASS TOP ----- (user-specified clean Minecraft greens)
     const gt = FACE_TEXTURES[BlockType.GRASS];
     const grassTopPalette = [
-        [89, 145, 51], [78, 130, 40], [96, 152, 56], [62, 110, 30],
-        [100, 160, 60], [55, 100, 25], [85, 140, 48], [70, 120, 35],
-        [45, 85, 22], [105, 155, 58], [68, 115, 33], [88, 142, 50],
-        [50, 90, 24], [95, 148, 55], [40, 75, 20], [82, 135, 42],
-        [75, 125, 38], [58, 105, 28], [92, 150, 54], [48, 88, 23],
-        [65, 112, 32], [42, 80, 21], [80, 132, 40], [55, 98, 26],
+        // #32401F dark green (shadow)
+        [50, 64, 31], [50, 64, 31],
+        // #425628 forest green (mid-tone)
+        [66, 86, 40], [66, 86, 40], [66, 86, 40],
+        // #4C632E moss green (main color)
+        [76, 99, 46], [76, 99, 46], [76, 99, 46], [76, 99, 46],
+        // #5A7537 light green (highlights)
+        [90, 117, 55], [90, 117, 55], [90, 117, 55],
     ];
     fillTile(ctx, gt.top, (x, y) => pickColor(grassTopPalette, x, y, 10));
 
     // ----- GRASS BOTTOM (DIRT) -----
-    // Real MC dirt has browns + occasional gray/blue stone specks
+    // User-specified browns + accent stone specks
     const dirtPalette = [
-        [134, 96, 67], [121, 85, 58], [140, 100, 72], [100, 68, 42],
-        [128, 90, 63], [145, 103, 75], [88, 60, 38], [136, 98, 69],
-        [118, 83, 56], [108, 74, 48], [125, 88, 61], [130, 92, 65],
-        [95, 65, 40], [138, 99, 70], [115, 80, 54], [142, 102, 73],
-        [110, 76, 50], [85, 58, 36], [132, 94, 66], [148, 108, 78],
-        // Gray stone specks mixed in (like reference)
-        [120, 115, 110], [105, 100, 96], [115, 110, 108], [98, 94, 90],
+        // #322317 deep brown (dark earth holes)
+        [50, 35, 23], [50, 35, 23],
+        // #432E20 coffee brown (standard earth)
+        [67, 46, 32], [67, 46, 32], [67, 46, 32], [67, 46, 32],
+        // #573D2A chocolate brown (lighter areas)
+        [87, 61, 42], [87, 61, 42], [87, 61, 42], [87, 61, 42],
+        // #876245 clay brown (dry spots)
+        [135, 98, 69], [135, 98, 69],
+        // #565453 stone gray (pebbles)
+        [86, 84, 83],
+        // #979D8A light taupe (edge highlights)
+        [151, 157, 138],
+        // #CED4D3 soft gray (rare bright accents)
+        [206, 212, 211],
     ];
     fillTile(ctx, gt.bottom, (x, y) => pickColor(dirtPalette, x, y, 20));
 
-    // ----- GRASS SIDE ----- (dirt with deep grass overhang on top)
+    // ----- GRASS SIDE ----- (dirt with clean grass overhang on top)
     fillTile(ctx, gt.side, (x, y) => {
         // Row 0: always grass
         if (y === 0) return pickColor(grassTopPalette, x, y, 30);
-        // Rows 1-4: ragged grass overhang (deeper drips like reference)
-        if (y <= 4) {
+        // Rows 1-3: ragged grass overhang
+        if (y <= 3) {
             const n = txNoise(x, y, 31);
-            const threshold = y === 1 ? 0.2 : y === 2 ? 0.35 : y === 3 ? 0.55 : 0.75;
+            const threshold = y === 1 ? 0.25 : y === 2 ? 0.5 : 0.72;
             if (n > threshold) {
-                // Dark edge green for hanging drips
-                if (y >= 2) {
-                    const darkGreen = pickColor(grassTopPalette, x, y, 30);
-                    darkGreen[0] = Math.max(0, darkGreen[0] - 20);
-                    darkGreen[1] = Math.max(0, darkGreen[1] - 15);
-                    darkGreen[2] = Math.max(0, darkGreen[2] - 10);
-                    return darkGreen;
-                }
-                return pickColor(grassTopPalette, x, y, 30);
+                // Slightly darker green for hanging drips
+                const c = pickColor(grassTopPalette, x, y, 30);
+                if (y >= 2) { c[0] -= 8; c[1] -= 6; c[2] -= 4; }
+                return c;
             }
         }
         return pickColor(dirtPalette, x, y, 32);
