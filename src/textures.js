@@ -203,35 +203,50 @@ export function createTextureAtlas() {
         return palette[Math.min(idx, palette.length - 1)].slice();
     }
 
-    // ----- GRASS TOP ----- (rich varied greens like Minecraft)
+    // ----- GRASS TOP ----- (rich varied greens with dark shadows like real MC)
     const gt = FACE_TEXTURES[BlockType.GRASS];
     const grassTopPalette = [
-        [89, 145, 51], [82, 138, 44], [96, 152, 56], [75, 130, 40],
-        [100, 160, 60], [70, 125, 38], [85, 140, 48], [92, 150, 54],
-        [78, 133, 42], [105, 155, 58], [68, 120, 36], [88, 142, 50],
-        [80, 136, 43], [95, 148, 55], [72, 128, 39], [90, 146, 52],
+        [89, 145, 51], [78, 130, 40], [96, 152, 56], [62, 110, 30],
+        [100, 160, 60], [55, 100, 25], [85, 140, 48], [70, 120, 35],
+        [45, 85, 22], [105, 155, 58], [68, 115, 33], [88, 142, 50],
+        [50, 90, 24], [95, 148, 55], [40, 75, 20], [82, 135, 42],
+        [75, 125, 38], [58, 105, 28], [92, 150, 54], [48, 88, 23],
+        [65, 112, 32], [42, 80, 21], [80, 132, 40], [55, 98, 26],
     ];
     fillTile(ctx, gt.top, (x, y) => pickColor(grassTopPalette, x, y, 10));
 
     // ----- GRASS BOTTOM (DIRT) -----
+    // Real MC dirt has browns + occasional gray/blue stone specks
     const dirtPalette = [
-        [134, 96, 67], [121, 85, 58], [140, 100, 72], [115, 80, 54],
-        [128, 90, 63], [145, 103, 75], [110, 76, 50], [136, 98, 69],
-        [118, 83, 56], [142, 102, 73], [125, 88, 61], [130, 92, 65],
-        [112, 78, 52], [138, 99, 70], [123, 86, 59], [132, 94, 66],
+        [134, 96, 67], [121, 85, 58], [140, 100, 72], [100, 68, 42],
+        [128, 90, 63], [145, 103, 75], [88, 60, 38], [136, 98, 69],
+        [118, 83, 56], [108, 74, 48], [125, 88, 61], [130, 92, 65],
+        [95, 65, 40], [138, 99, 70], [115, 80, 54], [142, 102, 73],
+        [110, 76, 50], [85, 58, 36], [132, 94, 66], [148, 108, 78],
+        // Gray stone specks mixed in (like reference)
+        [120, 115, 110], [105, 100, 96], [115, 110, 108], [98, 94, 90],
     ];
     fillTile(ctx, gt.bottom, (x, y) => pickColor(dirtPalette, x, y, 20));
 
-    // ----- GRASS SIDE ----- (dirt with grass strip on top)
+    // ----- GRASS SIDE ----- (dirt with deep grass overhang on top)
     fillTile(ctx, gt.side, (x, y) => {
+        // Row 0: always grass
         if (y === 0) return pickColor(grassTopPalette, x, y, 30);
-        if (y <= 2) {
+        // Rows 1-4: ragged grass overhang (deeper drips like reference)
+        if (y <= 4) {
             const n = txNoise(x, y, 31);
-            if (n > 0.35) return pickColor(grassTopPalette, x, y, 30);
-            // Transition mix
-            const g = pickColor(grassTopPalette, x, y, 30);
-            const d = pickColor(dirtPalette, x, y, 32);
-            return [Math.floor((g[0] + d[0]) / 2), Math.floor((g[1] + d[1]) / 2), Math.floor((g[2] + d[2]) / 2)];
+            const threshold = y === 1 ? 0.2 : y === 2 ? 0.35 : y === 3 ? 0.55 : 0.75;
+            if (n > threshold) {
+                // Dark edge green for hanging drips
+                if (y >= 2) {
+                    const darkGreen = pickColor(grassTopPalette, x, y, 30);
+                    darkGreen[0] = Math.max(0, darkGreen[0] - 20);
+                    darkGreen[1] = Math.max(0, darkGreen[1] - 15);
+                    darkGreen[2] = Math.max(0, darkGreen[2] - 10);
+                    return darkGreen;
+                }
+                return pickColor(grassTopPalette, x, y, 30);
+            }
         }
         return pickColor(dirtPalette, x, y, 32);
     });
@@ -239,27 +254,29 @@ export function createTextureAtlas() {
     // ----- DIRT -----
     fillTile(ctx, FACE_TEXTURES[BlockType.DIRT].all, (x, y) => pickColor(dirtPalette, x, y, 40));
 
-    // ----- STONE ----- (varied grays with darker patches)
+    // ----- STONE ----- (varied grays with dramatic darker patches)
     const stonePalette = [
-        [125, 125, 125], [118, 118, 118], [132, 132, 132], [108, 108, 108],
-        [140, 140, 140], [115, 115, 115], [128, 128, 128], [105, 105, 105],
-        [135, 135, 135], [112, 112, 112], [122, 122, 122], [100, 100, 100],
-        [130, 130, 130], [138, 138, 138], [110, 110, 110], [120, 120, 120],
+        [128, 128, 128], [118, 118, 118], [135, 135, 135], [100, 100, 100],
+        [142, 142, 142], [108, 108, 108], [125, 125, 125], [92, 92, 92],
+        [138, 138, 138], [112, 112, 112], [120, 120, 120], [85, 85, 85],
+        [132, 132, 132], [145, 145, 145], [105, 105, 105], [115, 115, 115],
     ];
     fillTile(ctx, FACE_TEXTURES[BlockType.STONE].all, (x, y) => {
         const c = pickColor(stonePalette, x, y, 50);
-        // Add occasional darker patches
+        // Darker crevice patches
         const patch = txNoise(x * 0.5, y * 0.5, 51);
-        if (patch < 0.2) { c[0] -= 15; c[1] -= 15; c[2] -= 15; }
+        if (patch < 0.15) { c[0] -= 25; c[1] -= 25; c[2] -= 25; }
+        // Light highlight patches
+        if (patch > 0.85) { c[0] += 10; c[1] += 10; c[2] += 10; }
         return c;
     });
 
-    // ----- SAND ----- (warm beige with subtle speckles)
+    // ----- SAND ----- (warm beige with wider variation)
     const sandPalette = [
-        [219, 207, 163], [214, 201, 156], [224, 212, 170], [210, 197, 150],
-        [228, 216, 175], [206, 193, 146], [222, 209, 166], [216, 203, 158],
-        [226, 214, 172], [212, 199, 152], [220, 208, 164], [208, 195, 148],
-        [230, 218, 178], [218, 205, 160], [213, 200, 155], [225, 213, 171],
+        [219, 207, 163], [210, 196, 148], [228, 216, 175], [200, 186, 140],
+        [224, 212, 170], [205, 192, 144], [232, 220, 180], [215, 202, 155],
+        [222, 209, 166], [208, 195, 150], [226, 214, 172], [195, 182, 136],
+        [218, 205, 160], [212, 199, 152], [230, 218, 178], [202, 189, 142],
     ];
     fillTile(ctx, FACE_TEXTURES[BlockType.SAND].all, (x, y) => pickColor(sandPalette, x, y, 60));
 

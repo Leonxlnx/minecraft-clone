@@ -584,17 +584,21 @@ function initMiningCrack() {
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0);
 
-            // Convert to dark semi-transparent tones (not solid black)
+            // Convert to varied dark tones like real Minecraft cracks
+            // Not all black — different shades of dark for natural look
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imageData.data;
             for (let p = 0; p < data.length; p += 4) {
                 if (data[p + 3] > 0) {
-                    // Dark tone, not pure black
-                    data[p] = 20;     // R
-                    data[p + 1] = 20; // G
-                    data[p + 2] = 20; // B
-                    // Reduce alpha for semi-transparent look
-                    data[p + 3] = Math.floor(data[p + 3] * 0.6);
+                    // Use original pixel brightness to determine crack shade
+                    const brightness = (data[p] + data[p + 1] + data[p + 2]) / 3;
+                    // Map to varied dark tones: pure black to dark gray (0-45)
+                    const shade = Math.floor((brightness / 255) * 45);
+                    data[p] = shade;       // R
+                    data[p + 1] = shade;   // G
+                    data[p + 2] = shade;   // B
+                    // Keep original alpha — full visibility cracks
+                    // data[p + 3] stays as-is
                 }
             }
             ctx.putImageData(imageData, 0, 0);
