@@ -11,25 +11,49 @@
 <body>
   <!-- Title Screen -->
   <div id="title-screen">
-    <div class="title-content">
-      <h1 class="game-title">MINECRAFT</h1>
-      <p class="subtitle">Browser Edition</p>
-      <button id="play-btn" class="mc-btn">Singleplayer</button>
+    <!-- Video Background (alternating 2 videos with fade) -->
+    <div id="video-bg">
+      <video id="bg-vid-1" src="/bgvid1.mp4" muted playsinline></video>
+      <video id="bg-vid-2" src="/bgvid2.mp4" muted playsinline></video>
+      <div id="video-overlay"></div>
     </div>
-    <!-- Mode Select -->
+
+    <!-- Main Menu Content -->
+    <div class="title-content" id="main-menu">
+      <img src="/textmain.png" alt="Minecraft" class="title-logo" />
+      <div class="menu-buttons">
+        <button id="play-btn" class="mc-img-btn">
+          <img src="/singleplayer.png" alt="Singleplayer" />
+        </button>
+      </div>
+      <p class="menu-footer">Minecraft Clone — Browser Edition</p>
+    </div>
+
+    <!-- Mode Select (Create New World) -->
     <div id="mode-select" style="display: none;">
-      <h2 class="mode-title">Select Game Mode</h2>
-      <button id="survival-btn" class="mc-btn">Survival Mode</button>
-      <button id="creative-btn" class="mc-btn">Creative Mode</button>
-      <div class="settings-panel">
-        <label class="mc-label">World Seed:
-          <input type="text" id="seed-input" placeholder="Random" class="mc-input"
-            style="width: 120px; margin-left: 8px; padding: 2px 6px; font-family: inherit; font-size: 14px; background: #333; color: #fff; border: 2px solid #555;">
-        </label>
-        <label class="mc-label"><input type="checkbox" id="peaceful-cb"> Peaceful (no hunger)</label>
-        <label class="mc-label">Render Distance: <span id="rd-label">6</span>
-          <input type="range" id="render-dist" min="2" max="32" value="6" class="mc-slider">
-        </label>
+      <div class="mc-panel">
+        <h2 class="panel-title">Create New World</h2>
+
+        <div class="panel-row">
+          <label class="mc-label-block">World Seed
+            <input type="text" id="seed-input" placeholder="Leave blank for random" class="mc-input-dark" />
+          </label>
+        </div>
+
+        <div class="panel-row two-col">
+          <label class="mc-label-block">Render Distance: <span id="rd-label">6</span>
+            <input type="range" id="render-dist" min="2" max="32" value="6" class="mc-slider" />
+          </label>
+          <label class="mc-label-inline">
+            <input type="checkbox" id="peaceful-cb" class="mc-checkbox" />
+            Peaceful Mode
+          </label>
+        </div>
+
+        <div class="panel-buttons">
+          <button id="survival-btn" class="mc-btn">Create World</button>
+          <button id="back-btn" class="mc-btn mc-btn-secondary">Cancel</button>
+        </div>
       </div>
     </div>
   </div>

@@ -17,17 +17,51 @@ let renderer, scene, camera;
 let world, player, inventory, dayNight, mobs, ui;
 let clock;
 let isPlaying = false;
-let gameMode = 'survival'; // 'survival' or 'creative'
+let gameMode = 'survival'; // Only survival for now
 let lastHealth = 20;
 let gamePeaceful = false;
 let gameRenderDist = 6;
 
+// ===== VIDEO BACKGROUND =====
+function initVideoBackground() {
+    const vid1 = document.getElementById('bg-vid-1');
+    const vid2 = document.getElementById('bg-vid-2');
+    if (!vid1 || !vid2) return;
+
+    let currentVid = vid1;
+    let nextVid = vid2;
+
+    function playNext() {
+        // Fade out current, fade in next
+        currentVid.classList.remove('active');
+        nextVid.classList.add('active');
+        nextVid.currentTime = 0;
+        nextVid.play().catch(() => { });
+
+        // Swap references
+        const temp = currentVid;
+        currentVid = nextVid;
+        nextVid = temp;
+    }
+
+    // Start first video
+    vid1.classList.add('active');
+    vid1.play().catch(() => { });
+
+    // When a video ends, crossfade to the other
+    vid1.addEventListener('ended', playNext);
+    vid2.addEventListener('ended', playNext);
+}
+
 // ===== INIT =====
 function init() {
+    // Video background
+    initVideoBackground();
+
     // Title screen buttons
     document.getElementById('play-btn').addEventListener('click', () => showModeSelect());
     document.getElementById('survival-btn')?.addEventListener('click', () => startGame('survival'));
-    document.getElementById('creative-btn')?.addEventListener('click', () => startGame('creative'));
+    document.getElementById('back-btn')?.addEventListener('click', () => showMainMenu());
 
     // Settings controls
     const peacefulCb = document.getElementById('peaceful-cb');
@@ -47,13 +81,21 @@ function init() {
 }
 
 function showModeSelect() {
-    document.getElementById('title-screen').querySelector('.title-content').style.display = 'none';
+    const mainMenu = document.getElementById('main-menu');
+    if (mainMenu) mainMenu.style.display = 'none';
     const modeSelect = document.getElementById('mode-select');
     if (modeSelect) {
         modeSelect.style.display = 'flex';
     } else {
         startGame('survival');
     }
+}
+
+function showMainMenu() {
+    const mainMenu = document.getElementById('main-menu');
+    if (mainMenu) mainMenu.style.display = 'flex';
+    const modeSelect = document.getElementById('mode-select');
+    if (modeSelect) modeSelect.style.display = 'none';
 }
 
 function startGame(mode) {
