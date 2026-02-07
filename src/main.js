@@ -138,11 +138,39 @@ async function startGame(mode) {
     setAtlasCanvas(atlas.image);
 
     // Materials
+    const foliageTimeUniform = { value: 0.0 };
+    window._foliageTimeUniform = foliageTimeUniform;
+
     const blockMaterial = new THREE.MeshLambertMaterial({
         map: atlas,
         side: THREE.FrontSide,
         alphaTest: 0.1,
     });
+
+    // Inject foliage waving into vertex shader
+    blockMaterial.onBeforeCompile = (shader) => {
+        shader.uniforms.uFoliageTime = foliageTimeUniform;
+
+        // Add attribute + uniform declarations before main()
+        shader.vertexShader = shader.vertexShader.replace(
+            'void main() {',
+            `attribute float aFoliage;
+            uniform float uFoliageTime;
+            void main() {`
+        );
+
+        // Add displacement after transformed position is computed
+        shader.vertexShader = shader.vertexShader.replace(
+            '#include <begin_vertex>',
+            `#include <begin_vertex>
+            if (aFoliage > 0.5) {
+                float windX = sin(uFoliageTime * 1.5 + position.x * 0.5 + position.z * 0.7) * 0.08;
+                float windZ = cos(uFoliageTime * 1.2 + position.z * 0.6 + position.x * 0.4) * 0.06;
+                transformed.x += windX * aFoliage;
+                transformed.z += windZ * aFoliage;
+            }`
+        );
+    };
 
     const waterMaterial = new THREE.MeshLambertMaterial({
         map: atlas,
@@ -530,84 +558,12 @@ let crackMesh = null;
 let crackTextures = [];
 
 function initMiningCrack() {
-    // Mining crack animation — starts from center impact, grows outward
-    // Asymmetric cracks that branch naturally, 5 cumulative stages
-    const stages = 5;
-    const size = 64;
+    // Load real Minecraft destroy stage textures (10 stages)
+    const loader = new THREE.TextureLoader();
+    const stages = 10;
 
-    // Each stage: array of line segments [x1, y1, x2, y2]
-    // Starts small from center, progressively covers more of the face
-    const stageCracks = [
-        // Stage 1: small initial crack from center
-        [
-            [28, 30, 36, 30],   // short horizontal from center
-            [32, 26, 32, 36],   // short vertical from center
-        ],
-        // Stage 2: cracks extend outward asymmetrically
-        [
-            [28, 30, 16, 22],   // upper-left diagonal
-            [36, 30, 48, 38],   // lower-right diagonal
-            [32, 26, 26, 14],   // up-left
-            [32, 36, 40, 48],   // down-right
-        ],
-        // Stage 3: more branches, reaching further
-        [
-            [16, 22, 8, 22],    // extend left
-            [16, 22, 16, 10],   // branch up from existing
-            [48, 38, 56, 38],   // extend right
-            [48, 38, 48, 50],   // branch down from existing
-            [26, 14, 38, 8],    // branch right at top
-            [40, 48, 28, 56],   // branch left at bottom
-        ],
-        // Stage 4: dense — filling out the face
-        [
-            [8, 22, 4, 34],     // left side down
-            [16, 10, 6, 4],     // top-left corner
-            [56, 38, 60, 28],   // right side up
-            [48, 50, 58, 58],   // bottom-right corner
-            [38, 8, 52, 6],     // top-right
-            [28, 56, 10, 58],   // bottom-left
-        ],
-        // Stage 5: nearly shattered — cracks everywhere
-        [
-            [4, 34, 4, 48],     // left edge
-            [6, 4, 24, 4],      // top edge
-            [60, 28, 60, 14],   // right edge top
-            [58, 58, 44, 60],   // bottom edge
-            [52, 6, 56, 16],    // top-right down
-            [10, 58, 4, 50],    // bottom-left up
-            [30, 20, 44, 16],   // inner crosshatch
-            [22, 42, 36, 46],   // inner crosshatch
-        ],
-    ];
-
-    let cumulativeCanvas = null;
-
-    for (let s = 0; s < stages; s++) {
-        const canvas = document.createElement('canvas');
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext('2d');
-
-        if (cumulativeCanvas) {
-            ctx.drawImage(cumulativeCanvas, 0, 0);
-        }
-
-        // Dark crack lines
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
-        ctx.lineWidth = 2;
-        ctx.lineCap = 'square';
-
-        for (const [x1, y1, x2, y2] of stageCracks[s]) {
-            ctx.beginPath();
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(x2, y2);
-            ctx.stroke();
-        }
-
-        cumulativeCanvas = canvas;
-
-        const tex = new THREE.CanvasTexture(canvas);
+    for (let i = 0; i < stages; i++) {
+        const tex = loader.load(`/destroy_stage/Destroy_stage_${i}.png`);
         tex.magFilter = THREE.NearestFilter;
         tex.minFilter = THREE.NearestFilter;
         crackTextures.push(tex);
@@ -663,6 +619,11 @@ function animate() {
     requestAnimationFrame(animate);
 
     const dt = Math.min(clock.getDelta(), 0.1);
+
+    // Update foliage wave time
+    if (window._foliageTimeUniform) {
+        window._foliageTimeUniform.value += dt;
+    }
 
     // Update systems
     if (isDead) {

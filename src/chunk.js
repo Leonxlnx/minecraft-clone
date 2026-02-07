@@ -281,6 +281,7 @@ export class Chunk {
         const normals = [];
         const uvs = [];
         const indices = [];
+        const foliage = [];  // per-vertex foliage flag for waving animation
 
         const waterPositions = [];
         const waterNormals = [];
@@ -318,24 +319,28 @@ export class Chunk {
                         positions.push(x, y, z, x + 1, y, z + 1, x + 1, y + 1, z + 1, x, y + 1, z);
                         normals.push(0.707, 0, -0.707, 0.707, 0, -0.707, 0.707, 0, -0.707, 0.707, 0, -0.707);
                         uvs.push(faceUVs[0], faceUVs[1], faceUVs[2], faceUVs[3], faceUVs[4], faceUVs[5], faceUVs[6], faceUVs[7]);
+                        foliage.push(0, 0, 1, 1);  // bottom=0, top=1
                         indices.push(vi1, vi1 + 1, vi1 + 2, vi1, vi1 + 2, vi1 + 3);
                         // Back face of diagonal 1
                         const vi1b = positions.length / 3;
                         positions.push(x + 1, y, z + 1, x, y, z, x, y + 1, z, x + 1, y + 1, z + 1);
                         normals.push(-0.707, 0, 0.707, -0.707, 0, 0.707, -0.707, 0, 0.707, -0.707, 0, 0.707);
                         uvs.push(faceUVs[0], faceUVs[1], faceUVs[2], faceUVs[3], faceUVs[4], faceUVs[5], faceUVs[6], faceUVs[7]);
+                        foliage.push(0, 0, 1, 1);
                         indices.push(vi1b, vi1b + 1, vi1b + 2, vi1b, vi1b + 2, vi1b + 3);
                         // Diagonal 2: other corner (NW-SE)
                         const vi2 = positions.length / 3;
                         positions.push(x, y, z + 1, x + 1, y, z, x + 1, y + 1, z, x, y + 1, z + 1);
                         normals.push(-0.707, 0, -0.707, -0.707, 0, -0.707, -0.707, 0, -0.707, -0.707, 0, -0.707);
                         uvs.push(faceUVs[0], faceUVs[1], faceUVs[2], faceUVs[3], faceUVs[4], faceUVs[5], faceUVs[6], faceUVs[7]);
+                        foliage.push(0, 0, 1, 1);
                         indices.push(vi2, vi2 + 1, vi2 + 2, vi2, vi2 + 2, vi2 + 3);
                         // Back face of diagonal 2
                         const vi2b = positions.length / 3;
                         positions.push(x + 1, y, z, x, y, z + 1, x, y + 1, z + 1, x + 1, y + 1, z);
                         normals.push(0.707, 0, 0.707, 0.707, 0, 0.707, 0.707, 0, 0.707, 0.707, 0, 0.707);
                         uvs.push(faceUVs[0], faceUVs[1], faceUVs[2], faceUVs[3], faceUVs[4], faceUVs[5], faceUVs[6], faceUVs[7]);
+                        foliage.push(0, 0, 1, 1);
                         indices.push(vi2b, vi2b + 1, vi2b + 2, vi2b, vi2b + 2, vi2b + 3);
                         continue; // skip normal cube face rendering
                     }
@@ -378,9 +383,22 @@ export class Chunk {
                         const faceUVs = getUVsForFace(block, face);
                         const faceVerts = getFaceVertices(wx0 + lx, ly, wz0 + lz, face);
 
+                        // Determine foliage value for this face
+                        const isFoliageBlock = block === BlockType.LEAVES || block === BlockType.GRASS;
                         for (let i = 0; i < 4; i++) {
                             p.push(faceVerts[i * 3], faceVerts[i * 3 + 1], faceVerts[i * 3 + 2]);
                             n.push(dir[0], dir[1], dir[2]);
+                            if (!isWater && isFoliageBlock) {
+                                // For leaves: all vertices wave. For grass: only top face waves.
+                                if (block === BlockType.LEAVES) {
+                                    foliage.push(1);
+                                } else {
+                                    // GRASS: top face (face 0) gets foliage
+                                    foliage.push(face === 0 ? 1 : 0);
+                                }
+                            } else if (!isWater) {
+                                foliage.push(0);
+                            }
                         }
                         u.push(
                             faceUVs[0], faceUVs[1],
@@ -412,6 +430,7 @@ export class Chunk {
             geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
             geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
             geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+            geo.setAttribute('aFoliage', new THREE.Float32BufferAttribute(foliage, 1));
             geo.setIndex(indices);
             this.mesh = new THREE.Mesh(geo, material);
             this.mesh.frustumCulled = true;
