@@ -251,6 +251,13 @@ export class UI {
     }
 
     closeCrafting(inventory) {
+        // Return any item held on cursor back to inventory
+        if (this._cursorItem) {
+            inventory.addItem(this._cursorItem.type, this._cursorItem.count);
+            this._cursorItem = null;
+            this._cursorSlot = -1;
+        }
+
         // Return items in crafting grid to inventory
         const grid = this.craftingMode === 'table' ? this.craftingGrid : this.invCraftGrid;
         for (let i = 0; i < grid.length; i++) {

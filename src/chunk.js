@@ -25,6 +25,14 @@ export class Chunk {
     }
 
     generate(noise) {
+        if (this.generated) return;
+        this.generateTerrain(noise);
+        this.generated = true;
+        this.dirty = true;
+    }
+
+    generateTerrain(noise) {
+        if (this._terrainDone) return;
         const SEA_LEVEL = 62;
         const wx0 = this.cx * CHUNK_SIZE;
         const wz0 = this.cz * CHUNK_SIZE;
@@ -123,78 +131,138 @@ export class Chunk {
                     this.blocks[idx] = block;
                 }
 
-                // ===== DECORATIONS (trees, flowers, etc.) =====
-                if (height > SEA_LEVEL) {
-                    const decNoise = noise.noise2D(wx * 0.5, wz * 0.5);
+            }
+        }
 
-                    // Trees — spread out, not too dense
-                    if (biome !== 'desert' && biome !== 'snowy') {
-                        const treeChance = biome === 'forest' ? 0.88 : 0.94;
-                        // Second noise for spacing — prevents clusters
-                        const spacing = noise.noise2D(wx * 0.3 + 500, wz * 0.3 + 500);
-                        if (decNoise > treeChance && spacing > 0.1) {
-                            this.generateTree(lx, height + 1, lz);
+        this._terrainDone = true;
+    }
+
+    // Second pass: trees, flowers, cacti — called after all neighbor chunks have terrain
+    decorate(noise) {
+        if (this.decorated) return;
+        this.decorated = true;
+
+        const SEA_LEVEL = 62;
+        for (let lx = 0; lx < CHUNK_SIZE; lx++) {
+            for (let lz = 0; lz < CHUNK_SIZE; lz++) {
+                const wx = this.cx * CHUNK_SIZE + lx;
+                const wz = this.cz * CHUNK_SIZE + lz;
+
+                // Find surface height
+                let height = 0;
+                for (let y = CHUNK_HEIGHT - 1; y >= 0; y--) {
+                    const b = this.blocks[this.getIndex(lx, y, lz)];
+                    if (b !== BlockType.AIR && b !== BlockType.WATER) {
+                        height = y;
+                        break;
+                    }
+                }
+
+                if (height <= SEA_LEVEL) continue;
+
+                // Determine biome (same logic as generateTerrain)
+                const biomeNoise = noise.noise2D(wx * 0.005, wz * 0.005);
+                const tempNoise = noise.noise2D(wx * 0.003 + 500, wz * 0.003 + 500);
+                let biome = 'plains';
+                if (biomeNoise > 0.3) biome = 'forest';
+                else if (biomeNoise < -0.3) biome = 'desert';
+                else if (tempNoise < -0.4) biome = 'snowy';
+                else if (biomeNoise > 0.1) biome = 'savanna';
+
+                const decNoise = noise.noise2D(wx * 0.5, wz * 0.5);
+
+                // Trees
+                if (biome !== 'desert' && biome !== 'snowy') {
+                    const treeChance = biome === 'forest' ? 0.88 : 0.94;
+                    const spacing = noise.noise2D(wx * 0.3 + 500, wz * 0.3 + 500);
+                    if (decNoise > treeChance && spacing > 0.1) {
+                        this.generateTree(lx, height + 1, lz);
+                    }
+                }
+
+                // Cactus in desert
+                if (biome === 'desert' && decNoise > 0.88) {
+                    const cactusH = 2 + Math.floor(Math.abs(decNoise) * 3);
+                    for (let cy = 1; cy <= cactusH; cy++) {
+                        if (height + cy < CHUNK_HEIGHT) {
+                            this.blocks[this.getIndex(lx, height + cy, lz)] = BlockType.CACTUS;
                         }
                     }
+                }
 
-                    // Cactus in desert
-                    if (biome === 'desert' && decNoise > 0.88) {
-                        const cactusH = 2 + Math.floor(Math.abs(decNoise) * 3);
-                        for (let cy = 1; cy <= cactusH; cy++) {
-                            if (height + cy < CHUNK_HEIGHT) {
-                                this.blocks[this.getIndex(lx, height + cy, lz)] = BlockType.CACTUS;
-                            }
+                // Tall grass + occasional flowers
+                if (biome === 'plains' || biome === 'forest' || biome === 'savanna') {
+                    const grassNoise = noise.noise2D(wx * 2.0, wz * 2.0);
+                    if (this.blocks[this.getIndex(lx, height + 1, lz)] === BlockType.AIR) {
+                        // Tall grass is common
+                        if (grassNoise > 0.05 && grassNoise < 0.45 && decNoise <= (biome === 'forest' ? 0.75 : 0.9)) {
+                            this.blocks[this.getIndex(lx, height + 1, lz)] = BlockType.TALL_GRASS;
                         }
-                    }
-
-                    // Flowers and tall grass
-                    if (biome === 'plains' || biome === 'forest' || biome === 'savanna') {
-                        const grassNoise = noise.noise2D(wx * 2.0, wz * 2.0);
-                        if (grassNoise > 0.2 && grassNoise < 0.4 && decNoise <= (biome === 'forest' ? 0.7 : 0.85)) {
-                            // Don't place if there's already a tree
-                            if (this.blocks[this.getIndex(lx, height + 1, lz)] === BlockType.AIR) {
-                                if (grassNoise > 0.35) {
-                                    this.blocks[this.getIndex(lx, height + 1, lz)] = BlockType.FLOWER_RED;
-                                } else if (grassNoise > 0.3) {
-                                    this.blocks[this.getIndex(lx, height + 1, lz)] = BlockType.FLOWER_YELLOW;
-                                }
-                            }
+                        // Flowers are rare
+                        else if (grassNoise > 0.6 && grassNoise < 0.65) {
+                            this.blocks[this.getIndex(lx, height + 1, lz)] = BlockType.FLOWER_RED;
+                        }
+                        else if (grassNoise > 0.55 && grassNoise < 0.58) {
+                            this.blocks[this.getIndex(lx, height + 1, lz)] = BlockType.FLOWER_YELLOW;
                         }
                     }
                 }
             }
         }
 
-        this.generated = true;
         this.dirty = true;
     }
 
     generateTree(lx, baseY, lz) {
         const trunkHeight = 4 + Math.floor(Math.random() * 3);
+        const wx0 = this.cx * CHUNK_SIZE;
+        const wz0 = this.cz * CHUNK_SIZE;
 
-        // Trunk
+        // Trunk (always within this chunk)
         for (let ty = 0; ty < trunkHeight; ty++) {
             if (baseY + ty < CHUNK_HEIGHT && lx >= 0 && lx < CHUNK_SIZE && lz >= 0 && lz < CHUNK_SIZE) {
                 this.blocks[this.getIndex(lx, baseY + ty, lz)] = BlockType.WOOD;
             }
         }
 
-        // Leaves (sphere-ish shape around top)
-        const leafStart = trunkHeight - 2;
-        const leafEnd = trunkHeight + 1;
-        for (let dy = leafStart; dy <= leafEnd; dy++) {
-            const radius = dy === leafEnd ? 1 : (dy >= trunkHeight ? 2 : 2);
+        // Leaves — full round canopy using sphere-like distance check
+        // Layer config: [yOffset, radius] — wider in middle, narrow at top
+        const layers = [
+            [trunkHeight - 2, 2],
+            [trunkHeight - 1, 3],  // Widest layer
+            [trunkHeight, 2],
+            [trunkHeight + 1, 1],  // Top cap
+        ];
+
+        for (const [dy, radius] of layers) {
+            const ny = baseY + dy;
+            if (ny >= CHUNK_HEIGHT) continue;
+
             for (let dx = -radius; dx <= radius; dx++) {
                 for (let dz = -radius; dz <= radius; dz++) {
-                    if (dx === 0 && dz === 0 && dy < trunkHeight) continue; // Trunk position
+                    // Skip trunk column in lower layers
+                    if (dx === 0 && dz === 0 && dy < trunkHeight) continue;
+
+                    // Circular distance check (round canopy instead of diamond)
+                    const dist = dx * dx + dz * dz;
+                    if (dist > radius * radius + 1) continue;
+
+                    // Randomly skip corner blocks for natural look
+                    if (dist === radius * radius + 1 && Math.random() > 0.5) continue;
+
                     const nx = lx + dx;
                     const nz = lz + dz;
-                    const ny = baseY + dy;
-                    if (nx >= 0 && nx < CHUNK_SIZE && nz >= 0 && nz < CHUNK_SIZE && ny < CHUNK_HEIGHT) {
-                        if (Math.abs(dx) + Math.abs(dz) <= radius + 1) {
-                            if (this.blocks[this.getIndex(nx, ny, nz)] === BlockType.AIR) {
-                                this.blocks[this.getIndex(nx, ny, nz)] = BlockType.LEAVES;
-                            }
+
+                    // Place leaf — either in this chunk or cross-chunk via world
+                    if (nx >= 0 && nx < CHUNK_SIZE && nz >= 0 && nz < CHUNK_SIZE) {
+                        if (this.blocks[this.getIndex(nx, ny, nz)] === BlockType.AIR) {
+                            this.blocks[this.getIndex(nx, ny, nz)] = BlockType.LEAVES;
+                        }
+                    } else if (this.world) {
+                        const worldX = wx0 + nx;
+                        const worldZ = wz0 + nz;
+                        if (this.world.getBlock(worldX, ny, worldZ) === BlockType.AIR) {
+                            this.world.setBlock(worldX, ny, worldZ, BlockType.LEAVES);
                         }
                     }
                 }
@@ -230,6 +298,41 @@ export class Chunk {
 
                     const wx = wx0 + lx;
                     const wz = wz0 + lz;
+
+                    // ===== CROSS-SHAPED PLANT RENDERING =====
+                    // Flowers, tall grass, mushrooms render as two diagonal X-shaped quads
+                    const isPlant = block === BlockType.FLOWER_RED || block === BlockType.FLOWER_YELLOW ||
+                        block === BlockType.TALL_GRASS || block === BlockType.MUSHROOM_RED ||
+                        block === BlockType.MUSHROOM_BROWN;
+                    if (isPlant) {
+                        const faceUVs = getUVsForFace(block, 2); // use front face UVs
+                        const x = wx, y = ly, z = wz;
+                        // Diagonal 1: corner to corner (SW-NE)
+                        const vi1 = positions.length / 3;
+                        positions.push(x, y, z, x + 1, y, z + 1, x + 1, y + 1, z + 1, x, y + 1, z);
+                        normals.push(0.707, 0, -0.707, 0.707, 0, -0.707, 0.707, 0, -0.707, 0.707, 0, -0.707);
+                        uvs.push(faceUVs[0], faceUVs[1], faceUVs[2], faceUVs[3], faceUVs[4], faceUVs[5], faceUVs[6], faceUVs[7]);
+                        indices.push(vi1, vi1 + 1, vi1 + 2, vi1, vi1 + 2, vi1 + 3);
+                        // Back face of diagonal 1
+                        const vi1b = positions.length / 3;
+                        positions.push(x + 1, y, z + 1, x, y, z, x, y + 1, z, x + 1, y + 1, z + 1);
+                        normals.push(-0.707, 0, 0.707, -0.707, 0, 0.707, -0.707, 0, 0.707, -0.707, 0, 0.707);
+                        uvs.push(faceUVs[0], faceUVs[1], faceUVs[2], faceUVs[3], faceUVs[4], faceUVs[5], faceUVs[6], faceUVs[7]);
+                        indices.push(vi1b, vi1b + 1, vi1b + 2, vi1b, vi1b + 2, vi1b + 3);
+                        // Diagonal 2: other corner (NW-SE)
+                        const vi2 = positions.length / 3;
+                        positions.push(x, y, z + 1, x + 1, y, z, x + 1, y + 1, z, x, y + 1, z + 1);
+                        normals.push(-0.707, 0, -0.707, -0.707, 0, -0.707, -0.707, 0, -0.707, -0.707, 0, -0.707);
+                        uvs.push(faceUVs[0], faceUVs[1], faceUVs[2], faceUVs[3], faceUVs[4], faceUVs[5], faceUVs[6], faceUVs[7]);
+                        indices.push(vi2, vi2 + 1, vi2 + 2, vi2, vi2 + 2, vi2 + 3);
+                        // Back face of diagonal 2
+                        const vi2b = positions.length / 3;
+                        positions.push(x + 1, y, z, x, y, z + 1, x, y + 1, z + 1, x + 1, y + 1, z);
+                        normals.push(0.707, 0, 0.707, 0.707, 0, 0.707, 0.707, 0, 0.707, 0.707, 0, 0.707);
+                        uvs.push(faceUVs[0], faceUVs[1], faceUVs[2], faceUVs[3], faceUVs[4], faceUVs[5], faceUVs[6], faceUVs[7]);
+                        indices.push(vi2b, vi2b + 1, vi2b + 2, vi2b, vi2b + 2, vi2b + 3);
+                        continue; // skip normal cube face rendering
+                    }
 
                     // Check each face
                     const faces = [

@@ -62,7 +62,7 @@ export class World {
         const pcz = Math.floor(pz / CHUNK_SIZE);
         const rd = this.renderDistance;
 
-        // Generate new chunks
+        // Pass 1: Generate terrain for all new chunks in range
         for (let dx = -rd; dx <= rd; dx++) {
             for (let dz = -rd; dz <= rd; dz++) {
                 if (dx * dx + dz * dz > rd * rd) continue;
@@ -75,6 +75,19 @@ export class World {
                     this.chunks.set(key, chunk);
                     chunk.generate(this.noise);
                 }
+            }
+        }
+
+        // Pass 2: Decorate chunks whose 4 neighbors all have terrain (so cross-chunk trees work)
+        for (const [key, chunk] of this.chunks) {
+            if (chunk.decorated || !chunk.generated) continue;
+            // Check all 4 neighbors exist and have terrain
+            const n1 = this.getChunk(chunk.cx - 1, chunk.cz);
+            const n2 = this.getChunk(chunk.cx + 1, chunk.cz);
+            const n3 = this.getChunk(chunk.cx, chunk.cz - 1);
+            const n4 = this.getChunk(chunk.cx, chunk.cz + 1);
+            if (n1 && n1.generated && n2 && n2.generated && n3 && n3.generated && n4 && n4.generated) {
+                chunk.decorate(this.noise);
             }
         }
 

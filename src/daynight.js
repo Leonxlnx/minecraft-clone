@@ -23,9 +23,13 @@ export class DayNightCycle {
         this.hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x444444, 0.3);
         scene.add(this.hemiLight);
 
-        // Fog
-        this.fog = new THREE.FogExp2(0x87CEEB, 0.008);
-        scene.fog = this.fog;
+        // Fog — use scene fog if set, otherwise create one
+        if (!scene.fog) {
+            this.fog = new THREE.FogExp2(0x87CEEB, 0.008);
+            scene.fog = this.fog;
+        } else {
+            this.fog = scene.fog;
+        }
 
         // Stars
         this.stars = this.createStars();

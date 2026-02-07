@@ -19,6 +19,8 @@ let clock;
 let isPlaying = false;
 let gameMode = 'survival'; // 'survival' or 'creative'
 let lastHealth = 20;
+let gamePeaceful = false;
+let gameRenderDist = 6;
 
 // ===== INIT =====
 function init() {
@@ -26,6 +28,18 @@ function init() {
     document.getElementById('play-btn').addEventListener('click', () => showModeSelect());
     document.getElementById('survival-btn')?.addEventListener('click', () => startGame('survival'));
     document.getElementById('creative-btn')?.addEventListener('click', () => startGame('creative'));
+
+    // Settings controls
+    const peacefulCb = document.getElementById('peaceful-cb');
+    if (peacefulCb) peacefulCb.addEventListener('change', (e) => { gamePeaceful = e.target.checked; });
+    const rdSlider = document.getElementById('render-dist');
+    const rdLabel = document.getElementById('rd-label');
+    if (rdSlider) {
+        rdSlider.addEventListener('input', (e) => {
+            gameRenderDist = parseInt(e.target.value);
+            if (rdLabel) rdLabel.textContent = gameRenderDist;
+        });
+    }
 
     // Try to start with mode select hidden
     const modeSelect = document.getElementById('mode-select');
@@ -38,7 +52,6 @@ function showModeSelect() {
     if (modeSelect) {
         modeSelect.style.display = 'flex';
     } else {
-        // Fallback: just start survival
         startGame('survival');
     }
 }
@@ -50,17 +63,20 @@ function startGame(mode) {
     // Setup Three.js
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87CEEB);
-    scene.fog = new THREE.Fog(0x87CEEB, 80, 200);
+    const fogDist = gameRenderDist * 16;
+    scene.fog = new THREE.Fog(0x87CEEB, fogDist * 0.6, fogDist * 1.2);
 
     camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 500);
 
     renderer = new THREE.WebGLRenderer({
         canvas: document.getElementById('game-canvas'),
-        antialias: false,
+        antialias: true,
         powerPreference: 'high-performance'
     });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = false;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     // Create texture atlas
     const atlas = createTextureAtlas();
@@ -87,12 +103,14 @@ function startGame(mode) {
 
     // World
     world = new World(scene, blockMaterial, waterMaterial);
+    world.renderDistance = gameRenderDist;
 
     // Player
     player = new Player(camera, world);
     player.creative = isCreative;
+    player.peaceful = gamePeaceful;
     if (isCreative) {
-        player.flying = true; // Start flying in creative
+        player.flying = true;
     }
 
     // Add block highlight to scene
@@ -300,6 +318,101 @@ function exitPointerLock() {
     player.mouseLocked = false;
 }
 
+// ===== 3D MINING CRACK ON BLOCK =====
+let crackMesh = null;
+let crackTextures = [];
+
+function initMiningCrack() {
+    // Create crack stage textures (10 stages like Minecraft)
+    const stages = 8;
+    for (let s = 0; s < stages; s++) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 32;
+        const ctx = canvas.getContext('2d');
+
+        // Transparent base
+        ctx.clearRect(0, 0, 32, 32);
+
+        // Draw crack lines that get progressively denser
+        const progress = (s + 1) / stages;
+        ctx.strokeStyle = `rgba(0, 0, 0, ${0.3 + progress * 0.5})`;
+        ctx.lineWidth = 1 + progress;
+
+        // Random-looking but deterministic crack pattern per stage
+        const seed = s * 7;
+        const numCracks = 2 + Math.floor(progress * 8);
+        for (let c = 0; c < numCracks; c++) {
+            ctx.beginPath();
+            const sx = ((seed + c * 13) % 28) + 2;
+            const sy = ((seed + c * 17) % 28) + 2;
+            ctx.moveTo(sx, sy);
+            const segments = 2 + Math.floor(progress * 3);
+            for (let seg = 0; seg < segments; seg++) {
+                const nx = sx + ((c * 7 + seg * 11 + seed) % 26) - 13;
+                const ny = sy + ((c * 13 + seg * 7 + seed) % 26) - 13;
+                ctx.lineTo(
+                    Math.max(0, Math.min(32, nx)),
+                    Math.max(0, Math.min(32, ny))
+                );
+            }
+            ctx.stroke();
+        }
+
+        // Darken overall as progress increases
+        ctx.fillStyle = `rgba(0, 0, 0, ${progress * 0.35})`;
+        ctx.fillRect(0, 0, 32, 32);
+
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.magFilter = THREE.NearestFilter;
+        tex.minFilter = THREE.NearestFilter;
+        crackTextures.push(tex);
+    }
+
+    // Create the crack mesh — slightly larger than a block to avoid z-fighting
+    const geo = new THREE.BoxGeometry(1.005, 1.005, 1.005);
+    const mat = new THREE.MeshBasicMaterial({
+        map: crackTextures[0],
+        transparent: true,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
+    });
+    crackMesh = new THREE.Mesh(geo, mat);
+    crackMesh.visible = false;
+    crackMesh.renderOrder = 998;
+    scene.add(crackMesh);
+}
+
+function updateMiningCrack() {
+    if (!crackMesh) initMiningCrack();
+
+    if (player.isMining && player.mineProgress > 0 && player.mineTarget) {
+        // Get break time for this block
+        const block = world.getBlock(player.mineTarget.x, player.mineTarget.y, player.mineTarget.z);
+        const data = BlockData[block];
+        const hardness = data ? data.hardness : 1.0;
+        const breakTime = Math.max(0.2, hardness * 1.5);
+        const progress = Math.min(player.mineProgress / breakTime, 1);
+
+        // Pick crack stage texture
+        const stageIndex = Math.min(Math.floor(progress * crackTextures.length), crackTextures.length - 1);
+        crackMesh.material.map = crackTextures[stageIndex];
+        crackMesh.material.needsUpdate = true;
+
+        // Position on the block being mined
+        crackMesh.position.set(
+            player.mineTarget.x + 0.5,
+            player.mineTarget.y + 0.5,
+            player.mineTarget.z + 0.5
+        );
+        crackMesh.visible = true;
+    } else {
+        crackMesh.visible = false;
+    }
+}
+
 // ===== GAME LOOP =====
 function animate() {
     if (!isPlaying) return;
@@ -315,6 +428,7 @@ function animate() {
         player.startMining(world, inventory);
     }
     player.updateMining(dt, world, inventory);
+    updateMiningCrack();
 
     world.update(player.position);
     dayNight.update(dt, player.position);

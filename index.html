@@ -21,6 +21,12 @@
       <h2 class="mode-title">Select Game Mode</h2>
       <button id="survival-btn" class="mc-btn">Survival Mode</button>
       <button id="creative-btn" class="mc-btn">Creative Mode</button>
+      <div class="settings-panel">
+        <label class="mc-label"><input type="checkbox" id="peaceful-cb"> Peaceful (no hunger)</label>
+        <label class="mc-label">Render Distance: <span id="rd-label">6</span>
+          <input type="range" id="render-dist" min="2" max="12" value="6" class="mc-slider">
+        </label>
+      </div>
     </div>
   </div>
 
@@ -29,12 +35,12 @@
 
   <!-- HUD -->
   <div id="hud" style="display: none;">
-    <div id="hotbar"></div>
     <div id="status-bars">
       <div id="health-bar"></div>
       <div id="hunger-bar"></div>
     </div>
     <div id="xp-bar"></div>
+    <div id="hotbar"></div>
   </div>
 
   <!-- Crosshair -->

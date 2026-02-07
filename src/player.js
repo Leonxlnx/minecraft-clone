@@ -49,6 +49,7 @@ export class Player {
         this.isMining = false;
         this.mineTarget = null;
         this.mineProgress = 0;
+        this.peaceful = false; // Peaceful mode: no hunger drain
 
         // Input state
         this.keys = {};
@@ -109,6 +110,16 @@ export class Player {
         sleeve.position.set(0, 0.35, 0);
         armGroup.add(sleeve);
 
+        // Held block indicator (visible cube in the fist)
+        const heldGeo = new THREE.BoxGeometry(0.25, 0.25, 0.25);
+        const heldMat = new THREE.MeshLambertMaterial({ color: 0x5f9f35 });
+        const heldBlock = new THREE.Mesh(heldGeo, heldMat);
+        heldBlock.position.set(0, -0.7, -0.08);
+        heldBlock.visible = false;  // Will be toggled by updateHeldItem
+        armGroup.add(heldBlock);
+        this._heldBlockMesh = heldBlock;
+        this._heldBlockMat = heldMat;
+
         return armGroup;
     }
 
@@ -154,6 +165,7 @@ export class Player {
         this.updateBlockHighlight();
         this.updateHunger(dt);
         this.updateArmSwing(dt);
+        this.updateHeldItem(inventory);
     }
 
     updateMovement(dt) {
@@ -301,7 +313,7 @@ export class Player {
     }
 
     updateHunger(dt) {
-        if (this.creative) return;
+        if (this.creative || this.peaceful) return;
 
         // Drain hunger over time or with sprint
         this.hungerTimer += dt;
@@ -330,6 +342,29 @@ export class Player {
                 this.regenTimer = 0;
                 if (this.health > 1) this.takeDamage(1);
             }
+        }
+    }
+
+    // Color map for held block display
+    static HELD_ITEM_COLORS = {
+        1: 0x5F9F35, 2: 0x866049, 3: 0x7D7D7D, 4: 0xDCD3A0, 6: 0x674E31,
+        7: 0x348228, 8: 0xC29D62, 9: 0x7A7A7A, 11: 0x444444, 12: 0xC4A88F,
+        13: 0xC8A800, 14: 0x22AADD, 15: 0x887E7E, 16: 0xE8E8F0, 17: 0x7AA8E0,
+        18: 0x377826, 19: 0x9EA4B0, 20: 0xC8DCFF, 21: 0x964A36, 22: 0x8B3A3A,
+        23: 0xC29D62, 24: 0x828282, 25: 0xC81E1E, 26: 0xFFC832,
+        27: 0x8C6432, 28: 0xC86464, 29: 0xA05032,
+        30: 0xB08050, 31: 0x909090, 32: 0xB08050, 33: 0x909090, 34: 0xB08050,
+    };
+
+    updateHeldItem(inventory) {
+        if (!this._heldBlockMesh || !inventory) return;
+        const held = inventory.getHeldItem();
+        if (held) {
+            const color = Player.HELD_ITEM_COLORS[held.type] || 0x888888;
+            this._heldBlockMat.color.setHex(color);
+            this._heldBlockMesh.visible = true;
+        } else {
+            this._heldBlockMesh.visible = false;
         }
     }
 

@@ -80,6 +80,11 @@ FACE_TEXTURES[BlockType.CRAFTING_TABLE] = { top: allocTile(), side: allocTile() 
 FACE_TEXTURES[BlockType.FURNACE] = { top: allocTile(), front: allocTile(), side: allocTile() };
 FACE_TEXTURES[BlockType.TNT] = { top: allocTile(), side: allocTile() };
 FACE_TEXTURES[BlockType.TORCH] = { all: allocTile() };
+FACE_TEXTURES[BlockType.FLOWER_RED] = { all: allocTile() };
+FACE_TEXTURES[BlockType.FLOWER_YELLOW] = { all: allocTile() };
+FACE_TEXTURES[BlockType.TALL_GRASS] = { all: allocTile() };
+FACE_TEXTURES[BlockType.MUSHROOM_RED] = { all: allocTile() };
+FACE_TEXTURES[BlockType.MUSHROOM_BROWN] = { all: allocTile() };
 
 // Items — reuse torch-like tile or unique
 FACE_TEXTURES[BlockType.STICK] = { all: allocTile() };
@@ -492,7 +497,68 @@ export function createTextureAtlas() {
         return [0, 0, 0, 0];
     });
 
-    // Create THREE.js texture
+    // ----- PLANT TEXTURES (transparent cross-shaped) -----
+    // Poppy (red flower)
+    fillTile(ctx, FACE_TEXTURES[BlockType.FLOWER_RED].all, (x, y) => {
+        // Stem
+        if (x >= 7 && x <= 8 && y >= 8 && y <= 15) return [50, 120, 30, 255];
+        // Flower head
+        const cx2 = 7.5, cy2 = 5;
+        const d = Math.sqrt((x - cx2) * (x - cx2) + (y - cy2) * (y - cy2));
+        if (d < 3.5) return [200, 30, 30, 255];
+        if (d < 4.5 && y < 7) return [180, 20, 20, 255];
+        // Leaves
+        if (x >= 5 && x <= 6 && y >= 10 && y <= 11) return [50, 130, 30, 255];
+        if (x >= 9 && x <= 10 && y >= 9 && y <= 10) return [50, 130, 30, 255];
+        return [0, 0, 0, 0];
+    });
+
+    // Dandelion (yellow flower)
+    fillTile(ctx, FACE_TEXTURES[BlockType.FLOWER_YELLOW].all, (x, y) => {
+        if (x >= 7 && x <= 8 && y >= 8 && y <= 15) return [50, 120, 30, 255];
+        const cx2 = 7.5, cy2 = 5;
+        const d = Math.sqrt((x - cx2) * (x - cx2) + (y - cy2) * (y - cy2));
+        if (d < 3) return [255, 220, 50, 255];
+        if (d < 4 && y < 7) return [230, 200, 40, 255];
+        if (x >= 5 && x <= 6 && y >= 10 && y <= 11) return [50, 130, 30, 255];
+        return [0, 0, 0, 0];
+    });
+
+    // Tall Grass
+    fillTile(ctx, FACE_TEXTURES[BlockType.TALL_GRASS].all, (x, y) => {
+        // Multiple grass blades with slight variation
+        const blades = [[3, 4], [5, 3], [7, 2], [9, 3], [11, 4], [6, 5], [10, 5]];
+        for (const [bx, minY] of blades) {
+            if (x >= bx && x <= bx + 1 && y >= minY && y <= 15) {
+                const shade = 70 + Math.floor(txNoise(x, y, 77) * 40);
+                return [shade - 30, shade + 50, shade - 40, 200];
+            }
+        }
+        return [0, 0, 0, 0];
+    });
+
+    // Red Mushroom
+    fillTile(ctx, FACE_TEXTURES[BlockType.MUSHROOM_RED].all, (x, y) => {
+        if (x >= 7 && x <= 8 && y >= 9 && y <= 15) return [200, 190, 170, 255];
+        if (y >= 5 && y <= 9 && x >= 4 && x <= 11) {
+            const dx2 = Math.abs(x - 7.5);
+            if (dx2 < 4 - (y - 5) * 0.5) {
+                if (txNoise(x, y, 33) > 0.6) return [255, 255, 255, 255];
+                return [200, 30, 30, 255];
+            }
+        }
+        return [0, 0, 0, 0];
+    });
+
+    // Brown Mushroom
+    fillTile(ctx, FACE_TEXTURES[BlockType.MUSHROOM_BROWN].all, (x, y) => {
+        if (x >= 7 && x <= 8 && y >= 9 && y <= 15) return [190, 180, 160, 255];
+        if (y >= 6 && y <= 9 && x >= 5 && x <= 10) {
+            const dx2 = Math.abs(x - 7.5);
+            if (dx2 < 3 - (y - 6) * 0.3) return [140, 100, 60, 255];
+        }
+        return [0, 0, 0, 0];
+    });
     const texture = new THREE.CanvasTexture(canvas);
     texture.magFilter = THREE.NearestFilter;
     texture.minFilter = THREE.NearestFilter;
@@ -502,7 +568,7 @@ export function createTextureAtlas() {
     return texture;
 }
 
-// Get a small canvas icon for inventory UI
+// Get a small canvas icon for inventory UI — isometric 3D block style
 export function getBlockIconCanvas(blockType, size = 32) {
     const canvas = document.createElement('canvas');
     canvas.width = size;
@@ -516,20 +582,103 @@ export function getBlockIconCanvas(blockType, size = 32) {
         return canvas;
     }
 
-    // Get the front/side tile
-    const tile = ft.all !== undefined ? ft.all : (ft.side !== undefined ? ft.side : (ft.top || ft.front || 0));
-    const tx = (tile % ATLAS_TILES) * TILE_SIZE;
-    const ty = Math.floor(tile / ATLAS_TILES) * TILE_SIZE;
-
-    // Get the atlas canvas
     const atlasCanvas = document.querySelector('canvas[data-atlas]') || _atlasCanvas;
-    if (atlasCanvas) {
-        ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(atlasCanvas, tx, ty, TILE_SIZE, TILE_SIZE, 0, 0, size, size);
-    } else {
-        // Fallback: draw colored square
+    if (!atlasCanvas) {
         ctx.fillStyle = '#888';
         ctx.fillRect(0, 0, size, size);
+        return canvas;
+    }
+
+    ctx.imageSmoothingEnabled = false;
+
+    // For items and plants, draw flat sprite
+    const isPlantOrItem = blockType === BlockType.FLOWER_RED || blockType === BlockType.FLOWER_YELLOW ||
+        blockType === BlockType.TALL_GRASS || blockType === BlockType.MUSHROOM_RED ||
+        blockType === BlockType.MUSHROOM_BROWN || blockType === BlockType.TORCH ||
+        blockType === BlockType.STICK || blockType === BlockType.RAW_PORK ||
+        blockType === BlockType.COOKED_PORK || blockType === BlockType.WOODEN_PICKAXE ||
+        blockType === BlockType.STONE_PICKAXE || blockType === BlockType.WOODEN_SWORD ||
+        blockType === BlockType.STONE_SWORD || blockType === BlockType.WOODEN_AXE;
+
+    if (isPlantOrItem) {
+        const tile = ft.all !== undefined ? ft.all : 0;
+        const tx = (tile % ATLAS_TILES) * TILE_SIZE;
+        const ty = Math.floor(tile / ATLAS_TILES) * TILE_SIZE;
+        ctx.drawImage(atlasCanvas, tx, ty, TILE_SIZE, TILE_SIZE, 2, 2, size - 4, size - 4);
+        return canvas;
+    }
+
+    // === Isometric 3D block rendering ===
+    // Get tile indices for top, right-side, and left-side faces
+    const topTile = ft.top !== undefined ? ft.top : (ft.all !== undefined ? ft.all : 0);
+    const sideTile = ft.side !== undefined ? ft.side : (ft.front !== undefined ? ft.front : (ft.all !== undefined ? ft.all : 0));
+
+    // Extract tile pixel data
+    function getTileData(tile) {
+        const tx = (tile % ATLAS_TILES) * TILE_SIZE;
+        const ty = Math.floor(tile / ATLAS_TILES) * TILE_SIZE;
+        const atlasCtx = atlasCanvas.getContext('2d');
+        return atlasCtx.getImageData(tx, ty, TILE_SIZE, TILE_SIZE);
+    }
+
+    const topData = getTileData(topTile);
+    const sideData = getTileData(sideTile);
+
+    // Draw isometric cube manually
+    const s = size;
+    const half = s / 2;
+    const qh = s / 4; // quarter height for isometric projection
+
+    // Top face — parallelogram at top
+    for (let px = 0; px < TILE_SIZE; px++) {
+        for (let py = 0; py < TILE_SIZE; py++) {
+            const i = (py * TILE_SIZE + px) * 4;
+            const r = topData.data[i], g = topData.data[i + 1], b = topData.data[i + 2], a = topData.data[i + 3];
+            if (a < 10) continue;
+            // Map to isometric top face position
+            const fx = px / TILE_SIZE;
+            const fy = py / TILE_SIZE;
+            const screenX = half + (fx - fy) * half * 0.9;
+            const screenY = (fx + fy) * qh * 0.9;
+            ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
+            ctx.fillRect(Math.floor(screenX), Math.floor(screenY), 2, 2);
+        }
+    }
+
+    // Left face — parallelogram on bottom-left (darker)
+    for (let px = 0; px < TILE_SIZE; px++) {
+        for (let py = 0; py < TILE_SIZE; py++) {
+            const i = (py * TILE_SIZE + px) * 4;
+            const r = Math.floor(sideData.data[i] * 0.6);
+            const g = Math.floor(sideData.data[i + 1] * 0.6);
+            const b = Math.floor(sideData.data[i + 2] * 0.6);
+            const a = sideData.data[i + 3];
+            if (a < 10) continue;
+            const fx = px / TILE_SIZE;
+            const fy = py / TILE_SIZE;
+            const screenX = (1 - fx) * half * 0.9;
+            const screenY = qh * 1.8 + fx * qh * 0.9 + fy * half * 0.55;
+            ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
+            ctx.fillRect(Math.floor(screenX), Math.floor(screenY), 2, 2);
+        }
+    }
+
+    // Right face — parallelogram on bottom-right (medium shade)
+    for (let px = 0; px < TILE_SIZE; px++) {
+        for (let py = 0; py < TILE_SIZE; py++) {
+            const i = (py * TILE_SIZE + px) * 4;
+            const r = Math.floor(sideData.data[i] * 0.8);
+            const g = Math.floor(sideData.data[i + 1] * 0.8);
+            const b = Math.floor(sideData.data[i + 2] * 0.8);
+            const a = sideData.data[i + 3];
+            if (a < 10) continue;
+            const fx = px / TILE_SIZE;
+            const fy = py / TILE_SIZE;
+            const screenX = half * 0.9 + fx * half * 0.9;
+            const screenY = qh * 0.9 + (1 - fx) * qh * 0.9 + fy * half * 0.55;
+            ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
+            ctx.fillRect(Math.floor(screenX), Math.floor(screenY), 2, 2);
+        }
     }
 
     return canvas;
