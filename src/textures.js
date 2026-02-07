@@ -215,23 +215,53 @@ export function createTextureAtlas() {
     fillTile(ctx, gt.top, (x, y) => pickColor(grassTopPalette, x, y, 10));
 
     // ----- GRASS BOTTOM (DIRT) -----
-    // ACTUAL Minecraft dirt RGB values from game texture data
-    const dirtPalette = [
-        // Dark browns
-        [77, 52, 34], [80, 55, 36], [93, 65, 43], [99, 69, 47],
-        // Medium browns (most common)
-        [103, 72, 49], [105, 71, 47], [106, 73, 49], [102, 71, 48],
-        [105, 77, 57], [107, 83, 68], [113, 79, 54], [116, 81, 55],
-        // Mid-light browns
-        [118, 84, 57], [126, 90, 61], [130, 93, 63], [131, 94, 64],
-        [134, 96, 65], [137, 98, 67],
-        // Light browns (highlights)
+    // ACTUAL Minecraft dirt RGB values — weighted distribution
+    const dirtLight = [
         [145, 104, 71], [154, 110, 75], [157, 113, 77], [161, 115, 79],
-        [162, 116, 80],
-        // Gray stone specks (authentic MC)
+        [162, 116, 80], [137, 98, 67], [134, 96, 65], [131, 94, 64],
+    ];
+    const dirtMedium = [
+        [103, 72, 49], [105, 71, 47], [106, 73, 49], [102, 71, 48],
+        [113, 79, 54], [118, 84, 57], [126, 90, 61], [130, 93, 63],
+    ];
+    const dirtDark = [
+        [77, 52, 34], [80, 55, 36], [93, 65, 43], [99, 69, 47],
+    ];
+    const stoneSpecks = [
         [99, 92, 89], [116, 113, 110], [117, 116, 116],
     ];
-    fillTile(ctx, gt.bottom, (x, y) => pickColor(dirtPalette, x, y, 20));
+
+    // Weighted dirt picker: mostly light, then medium, less dark, rare specks
+    // Position-aware: dark browns more likely near top (under grass)
+    function pickDirt(x, y, seed, nearGrass) {
+        const h = Math.abs(Math.sin(x * 127.1 + y * 311.7 + seed * 43758.5453) * 43758.5453);
+        const r = h - Math.floor(h); // 0..1
+
+        // Stone specks: ~6 per 16x16 face → probability ~6/256 ≈ 0.023
+        if (r < 0.023) {
+            const si = Math.floor(r * 130) % stoneSpecks.length;
+            return stoneSpecks[si].slice();
+        }
+
+        // Dark browns: more likely near grass (top), otherwise rare
+        const darkChance = nearGrass ? 0.25 : 0.08;
+        if (r < 0.023 + darkChance) {
+            const di = Math.floor((r * 9999)) % dirtDark.length;
+            return dirtDark[di].slice();
+        }
+
+        // Medium browns: ~35%
+        if (r < 0.023 + darkChance + 0.35) {
+            const mi = Math.floor((r * 7777)) % dirtMedium.length;
+            return dirtMedium[mi].slice();
+        }
+
+        // Light browns: remaining ~45%+
+        const li = Math.floor((r * 5555)) % dirtLight.length;
+        return dirtLight[li].slice();
+    }
+
+    fillTile(ctx, gt.bottom, (x, y) => pickDirt(x, y, 20, false));
 
     // ----- GRASS SIDE ----- (dirt with natural grass overhang)
     fillTile(ctx, gt.side, (x, y) => {
@@ -242,17 +272,18 @@ export function createTextureAtlas() {
             const n = txNoise(x, y, 31);
             const threshold = y === 1 ? 0.25 : y === 2 ? 0.55 : 0.78;
             if (n > threshold) {
-                // Slightly darker green at the drip edge
                 const c = pickColor(grassTopPalette, x, y, 30);
                 if (y >= 2) { c[0] -= 6; c[1] -= 5; c[2] -= 3; }
                 return c;
             }
         }
-        return pickColor(dirtPalette, x, y, 32);
+        // Dark dirt more likely in rows 1-5 (near grass), light elsewhere
+        const nearGrass = y <= 5;
+        return pickDirt(x, y, 32, nearGrass);
     });
 
     // ----- DIRT -----
-    fillTile(ctx, FACE_TEXTURES[BlockType.DIRT].all, (x, y) => pickColor(dirtPalette, x, y, 40));
+    fillTile(ctx, FACE_TEXTURES[BlockType.DIRT].all, (x, y) => pickDirt(x, y, 40, false));
 
     // ----- STONE ----- (varied grays with dramatic darker patches)
     const stonePalette = [
